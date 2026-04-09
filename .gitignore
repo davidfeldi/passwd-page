@@ -1,8 +1,8 @@
-# Binaries
-passwd-server
-passwd-page
-passwd
-passwd-mcp
+# Binaries (root only, not cmd/ directories)
+/passwd-server
+/passwd-page
+/passwd
+/passwd-mcp
 *.exe
 
 # SQLite
