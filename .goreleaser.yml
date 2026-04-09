@@ -1,0 +1,105 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: passwd-server
+    main: ./cmd/passwd-server
+    binary: passwd-server
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w
+
+  - id: passwd-cli
+    main: ./cmd/passwd
+    binary: passwd-page
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+
+  - id: passwd-mcp
+    main: ./cmd/passwd-mcp
+    binary: passwd-mcp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - id: cli
+    builds:
+      - passwd-cli
+    name_template: "passwd-page_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+  - id: mcp
+    builds:
+      - passwd-mcp
+    name_template: "passwd-mcp_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+  - id: server
+    builds:
+      - passwd-server
+    name_template: "passwd-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+
+brews:
+  - ids: [passwd-cli, passwd-mcp]
+    repository:
+      owner: davidfeldi
+      name: homebrew-tap
+    homepage: https://passwd.page
+    description: "Zero-knowledge secret sharing for humans and agents"
+    install: |
+      bin.install "passwd-page"
+      bin.install "passwd-mcp"
+
+release:
+  github:
+    owner: davidfeldi
+    name: passwd.page
+  draft: false
+  prerelease: auto

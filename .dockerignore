@@ -1,0 +1,8 @@
+.a5c
+.git
+node_modules
+e2e
+*.db
+*.db-shm
+*.db-wal
+passwd-page

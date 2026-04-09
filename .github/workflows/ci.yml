@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Go tests
+      - name: Go tests
+        run: go test ./...
+
+      # Go build (all 3 binaries)
+      - name: Go build
+        run: |
+          go build ./cmd/passwd-server
+          go build ./cmd/passwd
+          go build ./cmd/passwd-mcp
+
+      # Frontend
+      - name: Frontend install
+        run: cd frontend && npm ci
+
+      - name: Frontend crypto tests
+        run: cd frontend && npx vitest run
+
+      - name: Frontend build
+        run: cd frontend && npm run build
