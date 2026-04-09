@@ -20,18 +20,7 @@ jobs:
         with:
           node-version: '20'
 
-      # Go tests
-      - name: Go tests
-        run: go test ./...
-
-      # Go build (all 3 binaries)
-      - name: Go build
-        run: |
-          go build ./cmd/passwd-server
-          go build ./cmd/passwd
-          go build ./cmd/passwd-mcp
-
-      # Frontend
+      # Frontend first (Go embed needs frontend/build/)
       - name: Frontend install
         run: cd frontend && npm ci
 
@@ -40,3 +29,13 @@ jobs:
 
       - name: Frontend build
         run: cd frontend && npm run build
+
+      # Go (needs frontend/build/ to exist)
+      - name: Go tests
+        run: go test ./...
+
+      - name: Go build
+        run: |
+          go build ./cmd/passwd-server
+          go build ./cmd/passwd
+          go build ./cmd/passwd-mcp
