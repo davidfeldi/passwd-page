@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -14,6 +15,24 @@ import (
 )
 
 const maxCiphertextDecoded = 64 * 1024 // 64 KiB
+
+// Metrics returns anonymous usage counters.
+// Protected by METRICS_TOKEN env var — if set, requires ?token=<value> to access.
+func Metrics(store storage.Store) http.Handler {
+	token := os.Getenv("METRICS_TOKEN")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if token != "" && r.URL.Query().Get("token") != token {
+			writeError(w, http.StatusUnauthorized, "unauthorized", "Invalid or missing token")
+			return
+		}
+		stats, err := store.Stats(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Failed to get metrics")
+			return
+		}
+		writeJSON(w, http.StatusOK, stats)
+	})
+}
 
 // errorResponse represents a structured API error.
 type errorResponse struct {

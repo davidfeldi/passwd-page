@@ -94,6 +94,7 @@ func NewServer(store storage.Store, opts ...Option) *Server {
 	mux.Handle("POST /api/secrets", apiChain(CreateSecret(store)))
 	mux.Handle("GET /api/secrets/", apiChain(GetSecret(store)))
 	mux.Handle("GET /health", staticChain(HealthCheck()))
+	mux.Handle("GET /metrics", staticChain(Metrics(store)))
 
 	// Static frontend files with SPA fallback (no rate limit).
 	if cfg.frontend != nil {

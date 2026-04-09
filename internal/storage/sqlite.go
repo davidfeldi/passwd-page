@@ -23,6 +23,13 @@ const (
 			views           INTEGER NOT NULL DEFAULT 0
 		);
 		CREATE INDEX IF NOT EXISTS idx_secrets_expires_at ON secrets(expires_at);
+		CREATE TABLE IF NOT EXISTS counters (
+			key   TEXT PRIMARY KEY,
+			value INTEGER NOT NULL DEFAULT 0
+		);
+		INSERT OR IGNORE INTO counters (key, value) VALUES ('total_created', 0);
+		INSERT OR IGNORE INTO counters (key, value) VALUES ('total_burned', 0);
+		INSERT OR IGNORE INTO counters (key, value) VALUES ('total_expired', 0);
 	`
 
 	insertSQL = `INSERT INTO secrets (id, ciphertext, burn_after_read, expires_at, created_at) VALUES (?, ?, ?, ?, ?)`
@@ -129,6 +136,8 @@ func (s *SQLiteStore) Create(ctx context.Context, params CreateParams) (string, 
 		return "", fmt.Errorf("insert secret: %w", err)
 	}
 
+	s.db.ExecContext(ctx, `UPDATE counters SET value = value + 1 WHERE key = 'total_created'`)
+
 	return id, nil
 }
 
@@ -170,6 +179,7 @@ func (s *SQLiteStore) Get(ctx context.Context, id string) (*Secret, error) {
 		return nil, err
 	}
 	if sec != nil {
+		s.db.ExecContext(ctx, `UPDATE counters SET value = value + 1 WHERE key = 'total_burned'`)
 		return sec, nil
 	}
 
@@ -205,7 +215,47 @@ func (s *SQLiteStore) Cleanup(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("rows affected: %w", err)
 	}
 
+	if count > 0 {
+		s.db.ExecContext(ctx, `UPDATE counters SET value = value + ? WHERE key = 'total_expired'`, count)
+	}
+
 	return int(count), nil
+}
+
+// Stats returns anonymous usage counters.
+func (s *SQLiteStore) Stats(ctx context.Context) (*Stats, error) {
+	stats := &Stats{}
+
+	// Active secrets count
+	row := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM secrets WHERE expires_at > ?`, time.Now().UTC().Format(time.RFC3339))
+	if err := row.Scan(&stats.ActiveSecrets); err != nil {
+		return nil, fmt.Errorf("count active: %w", err)
+	}
+
+	// Counters
+	rows, err := s.db.QueryContext(ctx, `SELECT key, value FROM counters`)
+	if err != nil {
+		return nil, fmt.Errorf("query counters: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var key string
+		var value int64
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, fmt.Errorf("scan counter: %w", err)
+		}
+		switch key {
+		case "total_created":
+			stats.TotalCreated = value
+		case "total_burned":
+			stats.BurnedSecrets = value
+		case "total_expired":
+			stats.ExpiredCleaned = value
+		}
+	}
+
+	return stats, nil
 }
 
 // Close releases all resources.

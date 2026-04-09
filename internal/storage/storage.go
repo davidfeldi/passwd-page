@@ -44,6 +44,17 @@ type Store interface {
 	// Returns the number of secrets removed.
 	Cleanup(ctx context.Context) (removed int, err error)
 
+	// Stats returns anonymous usage counters.
+	Stats(ctx context.Context) (*Stats, error)
+
 	// Close releases all resources.
 	Close() error
+}
+
+// Stats holds anonymous usage counters — no PII, no secret data.
+type Stats struct {
+	TotalCreated    int64 `json:"totalCreated"`
+	ActiveSecrets   int64 `json:"activeSecrets"`
+	BurnedSecrets   int64 `json:"burnedSecrets"`
+	ExpiredCleaned  int64 `json:"expiredCleaned"`
 }

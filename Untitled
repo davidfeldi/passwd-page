@@ -1,0 +1,6 @@
+Run go build ./cmd/passwd-server
+  
+stat /home/runner/work/passwd-page/passwd-page/cmd/passwd-server: directory not found
+Error: Process completed with exit code 1.
+0s
+0s
