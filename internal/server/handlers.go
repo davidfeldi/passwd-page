@@ -14,7 +14,25 @@ import (
 	"github.com/davidfeldi/passwd-page/internal/storage"
 )
 
-const maxCiphertextDecoded = 64 * 1024 // 64 KiB
+const maxCiphertextDecoded = 1536 * 1024 // 1.5 MiB (accommodates 1 MiB file + envelope overhead)
+
+// allowedTypes is the set of valid secret `type` values. Clients may omit
+// the field (defaults to "text") but may not supply any other value.
+var allowedTypes = map[string]struct{}{
+	"text":         {},
+	"file":         {},
+	"postgres_url": {},
+	"api_key":      {},
+	"ssh_key":      {},
+	"env_file":     {},
+	"jwt":          {},
+	"oauth_token":  {},
+}
+
+func isValidType(t string) bool {
+	_, ok := allowedTypes[t]
+	return ok
+}
 
 // Metrics returns anonymous usage counters.
 // Protected by METRICS_TOKEN env var — if set, requires ?token=<value> to access.
@@ -49,6 +67,7 @@ type createRequest struct {
 	Ciphertext    string `json:"ciphertext"`
 	ExpiresIn     string `json:"expiresIn"`
 	BurnAfterRead *bool  `json:"burnAfterRead"`
+	Type          string `json:"type,omitempty"`
 }
 
 // createResponse is the JSON response for a successful secret creation.
@@ -61,6 +80,7 @@ type createResponse struct {
 type getResponse struct {
 	Ciphertext    string `json:"ciphertext"`
 	BurnAfterRead bool   `json:"burnAfterRead"`
+	Type          string `json:"type"`
 }
 
 // healthResponse is the JSON response for the health check endpoint.
@@ -82,18 +102,30 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	})
 }
 
+// allowedExpiresIn is the ordered enum of accepted TTL values for the
+// `expiresIn` field. Arbitrary durations are rejected.
+var allowedExpiresIn = []string{"5m", "15m", "1h", "24h", "7d", "30d"}
+
 // parseExpiresIn converts an expiresIn string to a duration.
+// Only values in allowedExpiresIn are accepted; everything else is rejected.
 func parseExpiresIn(s string) (time.Duration, bool) {
-	switch s {
-	case "1h":
-		return 1 * time.Hour, true
-	case "24h":
-		return 24 * time.Hour, true
-	case "7d":
-		return 7 * 24 * time.Hour, true
-	default:
-		return 0, false
+	for _, v := range allowedExpiresIn {
+		if v == s {
+			// "30d" isn't understood by time.ParseDuration; handle it explicitly.
+			if s == "30d" {
+				return 30 * 24 * time.Hour, true
+			}
+			if s == "7d" {
+				return 7 * 24 * time.Hour, true
+			}
+			d, err := time.ParseDuration(s)
+			if err != nil {
+				return 0, false
+			}
+			return d, true
+		}
 	}
+	return 0, false
 }
 
 // CreateSecret returns an http.HandlerFunc for POST /api/secrets.
@@ -143,7 +175,7 @@ func CreateSecret(store storage.Store) http.HandlerFunc {
 		}
 		duration, ok := parseExpiresIn(req.ExpiresIn)
 		if !ok {
-			writeError(w, http.StatusBadRequest, "invalid_expiry", "expiresIn must be one of: 1h, 24h, 7d")
+			writeError(w, http.StatusBadRequest, "invalid_expiry", "expiresIn must be one of: 5m, 15m, 1h, 24h, 7d, 30d")
 			return
 		}
 
@@ -153,12 +185,24 @@ func CreateSecret(store storage.Store) http.HandlerFunc {
 			return
 		}
 
+		// Validate optional type. Default to "text" when omitted.
+		secretType := req.Type
+		if secretType == "" {
+			secretType = "text"
+		}
+		if !isValidType(secretType) {
+			writeError(w, http.StatusBadRequest, "invalid_type",
+				"Field 'type' must be one of: text, file, postgres_url, api_key, ssh_key, env_file, jwt, oauth_token")
+			return
+		}
+
 		expiresAt := time.Now().Add(duration)
 
 		id, err := store.Create(r.Context(), storage.CreateParams{
 			Ciphertext:    decoded,
 			BurnAfterRead: *req.BurnAfterRead,
 			ExpiresAt:     expiresAt,
+			Type:          secretType,
 		})
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal_error", "Failed to create secret")
@@ -212,9 +256,16 @@ func GetSecret(store storage.Store) http.HandlerFunc {
 			return
 		}
 
+		// Backwards compat: legacy secrets stored without a type default to "text".
+		secretType := secret.Type
+		if secretType == "" {
+			secretType = "text"
+		}
+
 		writeJSON(w, http.StatusOK, getResponse{
 			Ciphertext:    base64.RawURLEncoding.EncodeToString(secret.Ciphertext),
 			BurnAfterRead: secret.BurnAfterRead,
+			Type:          secretType,
 		})
 	}
 }

@@ -1,0 +1,31 @@
+[Unit]
+Description=passwd.page — zero-knowledge ephemeral secret sharing
+Documentation=https://passwd.page https://github.com/davidfeldi/passwd-page
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=passwd
+Group=passwd
+WorkingDirectory=/var/lib/passwd-page
+ExecStart=/usr/local/bin/passwd-server -port 8080 -db /var/lib/passwd-page/data.db
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/lib/passwd-page
+RestrictAddressFamilies=AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

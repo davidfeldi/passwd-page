@@ -64,9 +64,39 @@ type toolSchema struct {
 }
 
 type property struct {
-	Type        string `json:"type"`
-	Description string `json:"description"`
-	Default     any    `json:"default,omitempty"`
+	Type        string   `json:"type"`
+	Description string   `json:"description"`
+	Default     any      `json:"default,omitempty"`
+	Enum        []string `json:"enum,omitempty"`
+}
+
+// allowedSecretTypes lists the type hints understood by the server. Must
+// stay in sync with internal/server/handlers.go.
+var allowedSecretTypes = []string{
+	"text", "file", "postgres_url", "api_key", "ssh_key",
+	"env_file", "jwt", "oauth_token",
+}
+
+// allowedTTLs lists the accepted TTL values. Must stay in sync with
+// internal/server/handlers.go.
+var allowedTTLs = []string{"5m", "15m", "1h", "24h", "7d", "30d"}
+
+func isAllowedSecretType(t string) bool {
+	for _, a := range allowedSecretTypes {
+		if a == t {
+			return true
+		}
+	}
+	return false
+}
+
+func isAllowedTTL(t string) bool {
+	for _, a := range allowedTTLs {
+		if a == t {
+			return true
+		}
+	}
+	return false
 }
 
 type toolResult struct {
@@ -83,33 +113,45 @@ type contentBlock struct {
 var tools = []tool{
 	{
 		Name:        "share_secret",
-		Description: "Encrypt and share a secret via passwd.page. Returns a one-time URL.",
+		Description: "Encrypt and share a secret via passwd.page. Returns a one-time URL. TTL options: 5m, 15m, 1h, 24h, 7d, 30d (default 24h). Optionally tag the secret with a 'type' hint so the receiving agent knows the schema (text, file, postgres_url, api_key, ssh_key, env_file, jwt, oauth_token).",
 		InputSchema: toolSchema{
 			Type: "object",
 			Properties: map[string]property{
 				"secret":          {Type: "string", Description: "The secret to share"},
-				"ttl":             {Type: "string", Description: "Time to live: 1h, 24h, or 7d", Default: "24h"},
+				"ttl":             {Type: "string", Description: "Time to live. One of: 5m, 15m, 1h, 24h, 7d, 30d", Default: "24h", Enum: allowedTTLs},
 				"burn_after_read": {Type: "boolean", Description: "Destroy secret after first read", Default: true},
+				"type": {
+					Type:        "string",
+					Description: "Optional schema hint for the receiving agent. One of: text, file, postgres_url, api_key, ssh_key, env_file, jwt, oauth_token. Defaults to 'text'.",
+					Default:     "text",
+					Enum:        allowedSecretTypes,
+				},
 			},
 			Required: []string{"secret"},
 		},
 	},
 	{
 		Name:        "share_file",
-		Description: "Encrypt and share a file via passwd.page WITHOUT the agent seeing its contents. The file is read directly by the tool — its contents never enter the conversation context. Ideal for .env files, credentials, keys.",
+		Description: "Encrypt and share a file via passwd.page WITHOUT the agent seeing its contents. The file is read directly by the tool — its contents never enter the conversation context. Ideal for .env files, credentials, keys. TTL options: 5m, 15m, 1h, 24h, 7d, 30d (default 24h). Secret 'type' is automatically set to 'file' but may be overridden (e.g. env_file, ssh_key).",
 		InputSchema: toolSchema{
 			Type: "object",
 			Properties: map[string]property{
 				"path":            {Type: "string", Description: "Absolute path to the file to encrypt and share"},
-				"ttl":             {Type: "string", Description: "Time to live: 1h, 24h, or 7d", Default: "24h"},
+				"ttl":             {Type: "string", Description: "Time to live. One of: 5m, 15m, 1h, 24h, 7d, 30d", Default: "24h", Enum: allowedTTLs},
 				"burn_after_read": {Type: "boolean", Description: "Destroy secret after first read", Default: true},
+				"type": {
+					Type:        "string",
+					Description: "Optional schema hint (defaults to 'file'). One of: text, file, postgres_url, api_key, ssh_key, env_file, jwt, oauth_token.",
+					Default:     "file",
+					Enum:        allowedSecretTypes,
+				},
 			},
 			Required: []string{"path"},
 		},
 	},
 	{
 		Name:        "retrieve_secret",
-		Description: "Retrieve and decrypt a secret from a passwd.page URL.",
+		Description: "Retrieve and decrypt a secret from a passwd.page URL. Response includes a 'type' field describing the schema of the secret (e.g. api_key, postgres_url).",
 		InputSchema: toolSchema{
 			Type: "object",
 			Properties: map[string]property{
@@ -213,9 +255,10 @@ func handleToolCall(params json.RawMessage, apiClient *client.Client, log func(s
 
 func shareSecret(args json.RawMessage, apiClient *client.Client, log func(string, ...any)) response {
 	var p struct {
-		Secret       string `json:"secret"`
-		TTL          string `json:"ttl"`
-		BurnAfterRead *bool `json:"burn_after_read"`
+		Secret        string `json:"secret"`
+		TTL           string `json:"ttl"`
+		BurnAfterRead *bool  `json:"burn_after_read"`
+		Type          string `json:"type"`
 	}
 	if err := json.Unmarshal(args, &p); err != nil {
 		return toolError("invalid arguments: " + err.Error())
@@ -226,14 +269,18 @@ func shareSecret(args json.RawMessage, apiClient *client.Client, log func(string
 	if p.TTL == "" {
 		p.TTL = "24h"
 	}
-	switch p.TTL {
-	case "1h", "24h", "7d":
-	default:
-		return toolError("invalid ttl: must be 1h, 24h, or 7d")
+	if !isAllowedTTL(p.TTL) {
+		return toolError("invalid ttl: must be one of 5m, 15m, 1h, 24h, 7d, 30d")
 	}
 	burn := true
 	if p.BurnAfterRead != nil {
 		burn = *p.BurnAfterRead
+	}
+	if p.Type == "" {
+		p.Type = "text"
+	}
+	if !isAllowedSecretType(p.Type) {
+		return toolError("invalid type: must be one of text, file, postgres_url, api_key, ssh_key, env_file, jwt, oauth_token")
 	}
 
 	key, err := crypto.GenerateKey()
@@ -247,7 +294,7 @@ func shareSecret(args json.RawMessage, apiClient *client.Client, log func(string
 	}
 
 	ctx := context.Background()
-	id, _, err := apiClient.CreateSecret(ctx, ciphertext, p.TTL, burn)
+	id, _, err := apiClient.CreateSecretWithType(ctx, ciphertext, p.TTL, burn, p.Type)
 	if err != nil {
 		return toolError("create secret: " + err.Error())
 	}
@@ -269,6 +316,7 @@ func shareFile(args json.RawMessage, apiClient *client.Client, log func(string, 
 		Path          string `json:"path"`
 		TTL           string `json:"ttl"`
 		BurnAfterRead *bool  `json:"burn_after_read"`
+		Type          string `json:"type"`
 	}
 	if err := json.Unmarshal(args, &p); err != nil {
 		return toolError("invalid arguments: " + err.Error())
@@ -279,14 +327,18 @@ func shareFile(args json.RawMessage, apiClient *client.Client, log func(string, 
 	if p.TTL == "" {
 		p.TTL = "24h"
 	}
-	switch p.TTL {
-	case "1h", "24h", "7d":
-	default:
-		return toolError("invalid ttl: must be 1h, 24h, or 7d")
+	if !isAllowedTTL(p.TTL) {
+		return toolError("invalid ttl: must be one of 5m, 15m, 1h, 24h, 7d, 30d")
 	}
 	burn := true
 	if p.BurnAfterRead != nil {
 		burn = *p.BurnAfterRead
+	}
+	if p.Type == "" {
+		p.Type = "file"
+	}
+	if !isAllowedSecretType(p.Type) {
+		return toolError("invalid type: must be one of text, file, postgres_url, api_key, ssh_key, env_file, jwt, oauth_token")
 	}
 
 	// Read file directly — contents never enter the agent's context
@@ -306,7 +358,7 @@ func shareFile(args json.RawMessage, apiClient *client.Client, log func(string, 
 	}
 
 	ctx := context.Background()
-	id, _, err := apiClient.CreateSecret(ctx, ciphertext, p.TTL, burn)
+	id, _, err := apiClient.CreateSecretWithType(ctx, ciphertext, p.TTL, burn, p.Type)
 	if err != nil {
 		return toolError("create secret: " + err.Error())
 	}
@@ -357,7 +409,7 @@ func retrieveSecret(args json.RawMessage, apiClient *client.Client, log func(str
 	}
 
 	ctx := context.Background()
-	ciphertext, _, err := apiClient.GetSecret(ctx, id)
+	ciphertext, _, secretType, err := apiClient.GetSecretWithType(ctx, id)
 	if err != nil {
 		return toolError("get secret: " + err.Error())
 	}
@@ -369,7 +421,10 @@ func retrieveSecret(args json.RawMessage, apiClient *client.Client, log func(str
 
 	log("retrieved secret: %s", id)
 
-	result, _ := json.Marshal(map[string]string{"secret": string(plaintext)})
+	result, _ := json.Marshal(map[string]string{
+		"secret": string(plaintext),
+		"type":   secretType,
+	})
 	return response{Result: toolResult{Content: []contentBlock{{Type: "text", Text: string(result)}}}}
 }
 

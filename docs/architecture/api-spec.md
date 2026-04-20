@@ -21,18 +21,20 @@ Create a new encrypted secret.
 ```json
 {
   "ciphertext": "string (base64url-encoded, required)",
-  "expiresIn": "string (required, one of: '1h', '24h', '7d')",
-  "burnAfterRead": "boolean (required)"
+  "expiresIn": "string (required, one of: '5m', '15m', '1h', '24h', '7d', '30d')",
+  "burnAfterRead": "boolean (required)",
+  "type": "string (optional; defaults to 'text')"
 }
 ```
 
 **Validation Rules:**
 
-| Field          | Rule                                              |
-|----------------|---------------------------------------------------|
-| ciphertext     | Required. base64url-encoded. Max 64 KiB decoded.  |
-| expiresIn      | Required. Must be one of: `1h`, `24h`, `7d`.      |
-| burnAfterRead  | Required. Boolean.                                 |
+| Field          | Rule                                                                                                                     |
+|----------------|--------------------------------------------------------------------------------------------------------------------------|
+| ciphertext     | Required. base64url-encoded. Max 64 KiB decoded.                                                                         |
+| expiresIn      | Required. Must be one of: `5m`, `15m`, `1h`, `24h`, `7d`, `30d`.                                                         |
+| burnAfterRead  | Required. Boolean.                                                                                                       |
+| type           | Optional. One of: `text`, `file`, `postgres_url`, `api_key`, `ssh_key`, `env_file`, `jwt`, `oauth_token`. Defaults `text`. |
 
 **Success Response: `201 Created`**
 
@@ -50,6 +52,7 @@ Create a new encrypted secret.
 | 400    | `invalid_request`   | Missing or malformed fields            |
 | 400    | `ciphertext_too_large` | Ciphertext exceeds 64 KiB          |
 | 400    | `invalid_expiry`    | expiresIn not one of allowed values    |
+| 400    | `invalid_type`      | type not one of allowed enum values    |
 | 429    | `rate_limited`      | Too many create requests               |
 | 500    | `internal_error`    | Server-side failure                    |
 
@@ -70,9 +73,13 @@ Retrieve an encrypted secret by ID.
 ```json
 {
   "ciphertext": "string (base64url-encoded)",
-  "burnAfterRead": true
+  "burnAfterRead": true,
+  "type": "text"
 }
 ```
+
+The `type` field echoes the schema hint set at creation time. Legacy secrets
+created before the field existed decode as `"text"`.
 
 If `burnAfterRead` is `true`, the secret is deleted from storage immediately after this response is sent. Subsequent requests for the same ID return 404.
 

@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  passwd-page:
+    build: .
+    image: passwd-page:local
+    container_name: passwd-page
+    ports:
+      - "8080:8080"
+    volumes:
+      - passwd-data:/var/lib/passwd-page
+    # Dockerfile WORKDIR is /app and CMD is ["./passwd-server"] (no ENTRYPOINT).
+    # We override CMD with an explicit path + flags so volume-backed DB is used.
+    command: ["/app/passwd-server", "-port", "8080", "-db", "/var/lib/passwd-page/data.db"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  passwd-data:

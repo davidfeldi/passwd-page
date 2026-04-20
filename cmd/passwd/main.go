@@ -39,13 +39,27 @@ func run(args []string) error {
 	}
 }
 
+// allowedCLITypes lists the secret-type values accepted by `passwd create`.
+// Kept in sync with internal/server/handlers.go.
+var allowedCLITypes = map[string]struct{}{
+	"text":         {},
+	"file":         {},
+	"postgres_url": {},
+	"api_key":      {},
+	"ssh_key":      {},
+	"env_file":     {},
+	"jwt":          {},
+	"oauth_token":  {},
+}
+
 func runCreate(args []string) error {
 	var (
-		ttl       = "24h"
-		burn      = true
-		serverURL = ""
-		filePath  = ""
-		secret    = ""
+		ttl        = "24h"
+		burn       = true
+		serverURL  = ""
+		filePath   = ""
+		secret     = ""
+		secretType = "text"
 	)
 
 	// Parse flags manually
@@ -74,6 +88,12 @@ func runCreate(args []string) error {
 				return fmt.Errorf("--file requires a value")
 			}
 			filePath = args[i]
+		case "--type":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--type requires a value")
+			}
+			secretType = args[i]
 		default:
 			if strings.HasPrefix(args[i], "-") {
 				return fmt.Errorf("unknown flag: %s", args[i])
@@ -84,9 +104,14 @@ func runCreate(args []string) error {
 
 	// Validate TTL
 	switch ttl {
-	case "1h", "24h", "7d":
+	case "5m", "15m", "1h", "24h", "7d", "30d":
 	default:
-		return fmt.Errorf("invalid --ttl value %q (options: 1h, 24h, 7d)", ttl)
+		return fmt.Errorf("invalid --ttl value %q (options: 5m, 15m, 1h, 24h, 7d, 30d)", ttl)
+	}
+
+	// Validate --type
+	if _, ok := allowedCLITypes[secretType]; !ok {
+		return fmt.Errorf("invalid --type value %q (options: text, file, postgres_url, api_key, ssh_key, env_file, jwt, oauth_token)", secretType)
 	}
 
 	// Read secret from: positional arg, --file, or stdin
@@ -135,7 +160,7 @@ func runCreate(args []string) error {
 	// Upload
 	ctx := context.Background()
 	c := client.NewClient(serverURL)
-	id, _, err := c.CreateSecret(ctx, ciphertext, ttl, burn)
+	id, _, err := c.CreateSecretWithType(ctx, ciphertext, ttl, burn, secretType)
 	if err != nil {
 		return err
 	}
@@ -213,7 +238,7 @@ func runGet(args []string) error {
 	// Fetch
 	ctx := context.Background()
 	c := client.NewClient(serverBase)
-	ciphertext, _, err := c.GetSecret(ctx, id)
+	ciphertext, _, secretType, err := c.GetSecretWithType(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -222,6 +247,13 @@ func runGet(args []string) error {
 	plaintext, err := crypto.Decrypt(ciphertext, key)
 	if err != nil {
 		return err
+	}
+
+	// Emit an informational comment line prefix so agents/tools know the
+	// stored schema. It's deliberately a `#`-prefixed line on stderr so
+	// plain `passwd get ... > file` piping stays unaffected.
+	if secretType != "" && secretType != "text" {
+		fmt.Fprintf(os.Stderr, "# type: %s\n", secretType)
 	}
 
 	fmt.Print(string(plaintext))

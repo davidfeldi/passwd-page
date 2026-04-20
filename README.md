@@ -1,11 +1,12 @@
-```
-
-    ██████╗  █████╗ ███████╗███████╗██╗    ██╗██████╗    ██████╗  █████╗  ██████╗ ███████╗
-    ██╔══██╗██╔══██╗██╔════╝██╔════╝██║    ██║██╔══██╗   ██╔══██╗██╔══██╗██╔════╝ ██╔════╝
-    ██████╔╝███████║███████╗███████╗██║ █╗ ██║██║  ██║   ██████╔╝███████║██║  ███╗█████╗
-    ██╔═══╝ ██╔══██║╚════██║╚════██║██║███╗██║██║  ██║   ██╔═══╝ ██╔══██║██║   ██║██╔══╝
-    ██║     ██║  ██║███████║███████║╚███╔███╔╝██████╔╝██╗██║     ██║  ██║╚██████╔╝███████╗
-    ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝ ╚══╝╚══╝ ╚═════╝ ╚═╝╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+```                                                                                                            
+                                                         ▄▄                                                   
+                                                         ██                                                   
+ ██▄███▄    ▄█████▄  ▄▄█████▄  ▄▄█████▄ ██      ██  ▄███▄██            ██▄███▄    ▄█████▄   ▄███▄██   ▄████▄  
+ ██▀  ▀██   ▀ ▄▄▄██  ██▄▄▄▄ ▀  ██▄▄▄▄ ▀ ▀█  ██  █▀ ██▀  ▀██            ██▀  ▀██   ▀ ▄▄▄██  ██▀  ▀██  ██▄▄▄▄██ 
+ ██    ██  ▄██▀▀▀██   ▀▀▀▀██▄   ▀▀▀▀██▄  ██▄██▄██  ██    ██            ██    ██  ▄██▀▀▀██  ██    ██  ██▀▀▀▀▀▀ 
+ ███▄▄██▀  ██▄▄▄███  █▄▄▄▄▄██  █▄▄▄▄▄██  ▀██  ██▀  ▀██▄▄███     ██     ███▄▄██▀  ██▄▄▄███  ▀██▄▄███  ▀██▄▄▄▄█ 
+ ██ ▀▀▀     ▀▀▀▀ ▀▀   ▀▀▀▀▀▀    ▀▀▀▀▀▀    ▀▀  ▀▀     ▀▀▀ ▀▀     ▀▀     ██ ▀▀▀     ▀▀▀▀ ▀▀   ▄▀▀▀ ██    ▀▀▀▀▀  
+ ██                                                                    ██                   ▀████▀▀           
 
     ┌──────┐   zero-knowledge secret sharing          ╭──────────────────╮
     │ ┌──┐ │   for humans & agents                    │  ████░░░░░░░░░   │
@@ -18,10 +19,12 @@
 ```
 
 # passwd.page
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/davidfeldi/passwd-page/ci.yml?branch=main)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
+
 
 **Zero-knowledge secret sharing for humans and agents.**
 
-[License: MIT](LICENSE)
 [Go 1.22+](https://go.dev)
 [Open Source](https://github.com/davidfeldi/passwd-page)
 
@@ -29,12 +32,20 @@
 
 Your agents need secrets. Pasting them into prompts gets them logged, leaked, and stored in places you don't control. passwd.page is the zero-knowledge handoff -- encrypted on your device, self-destructing after one read, and accessible from a browser, CLI, or any AI agent via MCP.
 
+## What's new (v3)
+- **QR code** on share page -- scan to open on another device.
+- **File sharing** -- drag-and-drop any file up to 1 MiB, encrypted client-side.
+- **Optional passphrase** -- second factor via PBKDF2-SHA256 (600k iters) + AES-GCM key wrapping.
+- **Secret types** -- `text`, `api_key`, `ssh_key`, `postgres_url`, `jwt`, `oauth_token`, `env_file`, `file`.
+- **Custom TTLs** -- 5m / 15m / 1h / 24h / 7d / 30d.
+- **Self-host polish** -- see [SELF_HOSTING.md](./SELF_HOSTING.md) (docker-compose / systemd unit).
+
 ## Features
 
 - **Zero-knowledge** -- server never sees plaintext
 - **End-to-end encrypted** -- AES-256-GCM, client-side
 - **Burn-after-read** -- secret is atomically deleted on first retrieval
-- **TTL expiry** -- unread secrets auto-expire (1h, 24h, or 7d)
+- **TTL expiry** -- unread secrets auto-expire (5m, 15m, 1h, 24h, 7d, or 30d)
 - **Browser UI, CLI tool, MCP tool server** -- three interfaces, one protocol
 - **Single binary, self-hostable** -- Go binary with embedded frontend (~7MB)
 - **No accounts, no cookies, no tracking** -- stateless by design
@@ -140,10 +151,11 @@ Add to your Claude Code config (`settings.json` or `claude_desktop_config.json`)
 
 Then ask your agent: *"Share this API key securely"* or *"Retrieve the secret at this URL."*
 
-The MCP server exposes two tools:
+The MCP server exposes three tools (all accept `type` and `ttl` params, enum-validated server-side):
 
-- `**share_secret*`* -- encrypt and upload a secret, returns a one-time URL
-- `**retrieve_secret**` -- fetch and decrypt a secret from a passwd.page URL
+- **`share_secret`** -- encrypt and upload a secret, returns a one-time URL
+- **`share_file`** -- encrypt and upload a file (<= 1 MiB), returns a one-time URL
+- **`retrieve_secret`** -- fetch and decrypt a secret from a passwd.page URL
 
 ## Use Cases
 
@@ -162,8 +174,9 @@ Create a new encrypted secret.
 // Request
 {
   "ciphertext": "<base64-encoded ciphertext>",
-  "expiresIn": "1h" | "24h" | "7d",
-  "burnAfterRead": true
+  "expiresIn": "5m" | "15m" | "1h" | "24h" | "7d" | "30d",
+  "burnAfterRead": true,
+  "type": "text"
 }
 
 // Response (201)
@@ -173,6 +186,8 @@ Create a new encrypted secret.
 }
 ```
 
+File size limit: 1 MiB plaintext (client-side enforced). API body limit: 2 MiB.
+
 ### `GET /api/secrets/{id}`
 
 Retrieve a secret. If burn-after-read is enabled, the secret is atomically deleted on read.
@@ -181,7 +196,8 @@ Retrieve a secret. If burn-after-read is enabled, the secret is atomically delet
 // Response (200)
 {
   "ciphertext": "<base64-encoded ciphertext>",
-  "burnAfterRead": true
+  "burnAfterRead": true,
+  "type": "text"
 }
 
 // Response (404) -- expired, burned, or not found
@@ -233,7 +249,7 @@ Fork the repo, connect it to [Render](https://render.com), and it auto-deploys f
 | `PASSWD_SERVER`        | `https://passwd.page` | CLI, MCP | Server URL                      |
 | `PORT` or `-port`      | `8080`                | Server   | HTTP listen port                |
 | `-db`                  | `passwd.db`           | Server   | SQLite database path            |
-| `--ttl` / `-t`         | `24h`                 | CLI      | Secret TTL (`1h`, `24h`, `7d`)  |
+| `--ttl` / `-t`         | `24h`                 | CLI      | Secret TTL (`5m`, `15m`, `1h`, `24h`, `7d`, `30d`) |
 | `--burn` / `--no-burn` | burn on               | CLI      | Burn after read toggle          |
 | `--server` / `-s`      | (from env)            | CLI      | Override server URL per-command |
 | `--file` / `-f`        |                       | CLI      | Read secret from a file         |

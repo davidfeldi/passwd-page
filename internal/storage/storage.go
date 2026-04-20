@@ -14,6 +14,7 @@ type Secret struct {
 	ExpiresAt     time.Time
 	CreatedAt     time.Time
 	Views         int
+	Type          string
 }
 
 // CreateParams holds the parameters for creating a new secret.
@@ -21,6 +22,7 @@ type CreateParams struct {
 	Ciphertext    []byte
 	BurnAfterRead bool
 	ExpiresAt     time.Time
+	Type          string
 }
 
 // Store is the persistence interface for secrets.

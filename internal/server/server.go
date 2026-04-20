@@ -81,7 +81,7 @@ func NewServer(store storage.Store, opts ...Option) *Server {
 
 	// Middleware chains: rate limiting only on API routes, not static assets.
 	rateLimit := RateLimit(10, 60, 1*time.Minute)
-	maxBody := MaxBodySize(128 * 1024) // 128 KiB
+	maxBody := MaxBodySize(2 * 1024 * 1024) // 2 MiB
 
 	apiChain := func(h http.Handler) http.Handler {
 		return RequestLogger(SecurityHeaders(rateLimit(maxBody(h))))

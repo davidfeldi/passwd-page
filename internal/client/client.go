@@ -62,6 +62,7 @@ type createRequest struct {
 	Ciphertext    string `json:"ciphertext"`
 	ExpiresIn     string `json:"expiresIn"`
 	BurnAfterRead bool   `json:"burnAfterRead"`
+	Type          string `json:"type,omitempty"`
 }
 
 // createResponse is the JSON response for a successful secret creation.
@@ -74,6 +75,7 @@ type createResponse struct {
 type getResponse struct {
 	Ciphertext    string `json:"ciphertext"`
 	BurnAfterRead bool   `json:"burnAfterRead"`
+	Type          string `json:"type"`
 }
 
 // errorResponse matches the server's structured error format.
@@ -86,11 +88,21 @@ type errorResponse struct {
 
 // CreateSecret posts an encrypted secret to the server.
 // Returns the secret ID and expiry time.
+//
+// Deprecated callers may keep using this; prefer CreateSecretWithType when
+// a schema hint is known. An empty secretType is omitted from the wire
+// payload (server defaults to "text").
 func (c *Client) CreateSecret(ctx context.Context, ciphertext string, expiresIn string, burnAfterRead bool) (id string, expiresAt string, err error) {
+	return c.CreateSecretWithType(ctx, ciphertext, expiresIn, burnAfterRead, "")
+}
+
+// CreateSecretWithType is like CreateSecret but includes the optional type hint.
+func (c *Client) CreateSecretWithType(ctx context.Context, ciphertext string, expiresIn string, burnAfterRead bool, secretType string) (id string, expiresAt string, err error) {
 	body, err := json.Marshal(createRequest{
 		Ciphertext:    ciphertext,
 		ExpiresIn:     expiresIn,
 		BurnAfterRead: burnAfterRead,
+		Type:          secretType,
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("marshal request: %w", err)
@@ -123,27 +135,38 @@ func (c *Client) CreateSecret(ctx context.Context, ciphertext string, expiresIn 
 // GetSecret retrieves an encrypted secret by ID.
 // Returns the ciphertext and burn-after-read flag.
 func (c *Client) GetSecret(ctx context.Context, id string) (ciphertext string, burnAfterRead bool, err error) {
+	ciphertext, burnAfterRead, _, err = c.GetSecretWithType(ctx, id)
+	return
+}
+
+// GetSecretWithType is like GetSecret but also returns the optional type hint.
+// When the server returns an empty/missing type, the caller receives "text".
+func (c *Client) GetSecretWithType(ctx context.Context, id string) (ciphertext string, burnAfterRead bool, secretType string, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/secrets/"+id, nil)
 	if err != nil {
-		return "", false, fmt.Errorf("create request: %w", err)
+		return "", false, "", fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", false, fmt.Errorf("send request: %w", err)
+		return "", false, "", fmt.Errorf("send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if err := checkStatus(resp); err != nil {
-		return "", false, err
+		return "", false, "", err
 	}
 
 	var result getResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", false, fmt.Errorf("decode response: %w", err)
+		return "", false, "", fmt.Errorf("decode response: %w", err)
 	}
-	return result.Ciphertext, result.BurnAfterRead, nil
+	t := result.Type
+	if t == "" {
+		t = "text"
+	}
+	return result.Ciphertext, result.BurnAfterRead, t, nil
 }
 
 // checkStatus maps non-2xx HTTP responses to sentinel errors.

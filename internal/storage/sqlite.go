@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -20,7 +21,8 @@ const (
 			burn_after_read BOOLEAN NOT NULL DEFAULT FALSE,
 			expires_at      DATETIME NOT NULL,
 			created_at      DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-			views           INTEGER NOT NULL DEFAULT 0
+			views           INTEGER NOT NULL DEFAULT 0,
+			type            TEXT
 		);
 		CREATE INDEX IF NOT EXISTS idx_secrets_expires_at ON secrets(expires_at);
 		CREATE TABLE IF NOT EXISTS counters (
@@ -32,11 +34,16 @@ const (
 		INSERT OR IGNORE INTO counters (key, value) VALUES ('total_expired', 0);
 	`
 
-	insertSQL = `INSERT INTO secrets (id, ciphertext, burn_after_read, expires_at, created_at) VALUES (?, ?, ?, ?, ?)`
+	// addTypeColumnSQL adds the `type` column to existing databases. It is
+	// idempotent: we ignore "duplicate column name" errors when the column
+	// already exists (e.g. on freshly created tables via createTableSQL).
+	addTypeColumnSQL = `ALTER TABLE secrets ADD COLUMN type TEXT`
 
-	getBurnSQL = `DELETE FROM secrets WHERE id = ? AND burn_after_read = 1 AND expires_at > ? RETURNING id, ciphertext, burn_after_read, expires_at, created_at, views`
+	insertSQL = `INSERT INTO secrets (id, ciphertext, burn_after_read, expires_at, created_at, type) VALUES (?, ?, ?, ?, ?, ?)`
 
-	getNormalSQL = `UPDATE secrets SET views = views + 1 WHERE id = ? AND burn_after_read = 0 AND expires_at > ? RETURNING id, ciphertext, burn_after_read, expires_at, created_at, views`
+	getBurnSQL = `DELETE FROM secrets WHERE id = ? AND burn_after_read = 1 AND expires_at > ? RETURNING id, ciphertext, burn_after_read, expires_at, created_at, views, COALESCE(type, '')`
+
+	getNormalSQL = `UPDATE secrets SET views = views + 1 WHERE id = ? AND burn_after_read = 0 AND expires_at > ? RETURNING id, ciphertext, burn_after_read, expires_at, created_at, views, COALESCE(type, '')`
 
 	deleteSQL = `DELETE FROM secrets WHERE id = ?`
 
@@ -78,6 +85,14 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	if _, err := db.Exec(createTableSQL); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("create table: %w", err)
+	}
+
+	// Idempotent migration: add the `type` column to pre-existing databases.
+	// SQLite raises "duplicate column name" when the column already exists —
+	// safe to ignore so this runs on every startup.
+	if _, err := db.Exec(addTypeColumnSQL); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		db.Close()
+		return nil, fmt.Errorf("add type column: %w", err)
 	}
 
 	s := &SQLiteStore{db: db}
@@ -131,7 +146,12 @@ func (s *SQLiteStore) Create(ctx context.Context, params CreateParams) (string, 
 	now := time.Now().UTC().Format(time.RFC3339)
 	expiresAt := params.ExpiresAt.UTC().Format(time.RFC3339)
 
-	_, err = s.stmtInsert.ExecContext(ctx, id, params.Ciphertext, params.BurnAfterRead, expiresAt, now)
+	secretType := params.Type
+	if secretType == "" {
+		secretType = "text"
+	}
+
+	_, err = s.stmtInsert.ExecContext(ctx, id, params.Ciphertext, params.BurnAfterRead, expiresAt, now, secretType)
 	if err != nil {
 		return "", fmt.Errorf("insert secret: %w", err)
 	}
@@ -146,12 +166,17 @@ func scanSecret(row *sql.Row) (*Secret, error) {
 	var sec Secret
 	var expiresAt, createdAt string
 
-	err := row.Scan(&sec.ID, &sec.Ciphertext, &sec.BurnAfterRead, &expiresAt, &createdAt, &sec.Views)
+	err := row.Scan(&sec.ID, &sec.Ciphertext, &sec.BurnAfterRead, &expiresAt, &createdAt, &sec.Views, &sec.Type)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("scan secret: %w", err)
+	}
+
+	// Backwards compat: NULL / empty type columns default to "text".
+	if sec.Type == "" {
+		sec.Type = "text"
 	}
 
 	sec.ExpiresAt, err = time.Parse(time.RFC3339, expiresAt)
