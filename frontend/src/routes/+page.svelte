@@ -33,6 +33,40 @@
 		</div>
 	</section>
 
+	<!-- What's new (v3) -->
+	<section class="section" id="whats-new">
+		<div class="contain">
+			<p class="section-label">New in v3</p>
+			<h2>Six reasons to try it again.</h2>
+			<div class="grid-2">
+				<div class="card">
+					<h3>📱 QR code on every link</h3>
+					<p class="card-body">Shared from laptop, opening on your phone? Scan. Done. No 64-character URL typing.</p>
+				</div>
+				<div class="card">
+					<h3>📎 Files, not just passwords</h3>
+					<p class="card-body">Drag &amp; drop any file up to 1 MB. SSH keys, <code>.env</code> files, certs. Encrypted in your browser before it leaves.</p>
+				</div>
+				<div class="card">
+					<h3>🔐 Optional passphrase</h3>
+					<p class="card-body">Second factor for the paranoid. PBKDF2-hardened, never sent to the server. Even if the link leaks, the secret doesn't.</p>
+				</div>
+				<div class="card">
+					<h3>🏷️ Typed secrets</h3>
+					<p class="card-body">Tell the receiving agent it's an <code>api_key</code> vs a <code>postgres_url</code>. Eight types. Schema hints for the agent era.</p>
+				</div>
+				<div class="card">
+					<h3>⏱️ Five-minute TTLs</h3>
+					<p class="card-body">For when your agent needs a token <em>right now</em> and never again. Also 15m, 1h, 24h, 7d, 30d.</p>
+				</div>
+				<div class="card">
+					<h3>🐳 Self-host in 60 seconds</h3>
+					<p class="card-body"><code>docker compose up -d</code>. Or drop the systemd unit. See <a href="https://github.com/davidfeldi/passwd-page/blob/main/SELF_HOSTING.md">SELF_HOSTING.md</a>.</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
 	<!-- Problem -->
 	<section class="section" id="problem">
 		<div class="contain">
@@ -133,23 +167,24 @@
 					<p class="gs-desc">The simplest way. No install.</p>
 					<div class="gs-steps">
 						<p>1. Go to <a href="/share">passwd.page/share</a></p>
-						<p>2. Paste your secret, pick expiry</p>
-						<p>3. Send the link</p>
+						<p>2. Paste a secret <em>or</em> drop a file</p>
+						<p>3. Pick TTL, optional passphrase</p>
+						<p>4. Copy link or scan the QR</p>
 					</div>
 				</div>
 				<div class="card gs-card">
 					<h3>CLI</h3>
 					<p class="gs-desc">For your terminal and scripts.</p>
-					<pre class="code-block"><span class="c-dim"># Share a secret</span>
-passwd create "my-api-key" --ttl 1h
+					<pre class="code-block"><span class="c-dim"># Share a typed secret, 5 min TTL</span>
+passwd create "sk_live_..." --type api_key --ttl 5m
 <span class="c-green"># https://passwd.page/s/a3f8#kG7...</span>
 
 <span class="c-dim"># Retrieve it</span>
 passwd get "https://passwd.page/s/a3f8#kG7..."
-<span class="c-green"># my-api-key</span>
+<span class="c-green"># sk_live_...</span>
 
-<span class="c-dim"># From a file</span>
-passwd create --file .env</pre>
+<span class="c-dim"># From a file (1 MB max)</span>
+passwd create --file .env --type env_file</pre>
 				</div>
 				<div class="card gs-card">
 					<h3>AI Agent</h3>
@@ -162,8 +197,9 @@ passwd create --file .env</pre>
     &#125;
   &#125;
 &#125;</pre>
-					<p class="gs-hint"><strong>share_file</strong> &mdash; "Encrypt my .env file" &rarr; agent reads the path, never the contents.<br/>
-					<strong>retrieve_secret</strong> &mdash; "Use the credentials at this URL to deploy" &rarr; agent fetches and decrypts at runtime.</p>
+					<p class="gs-hint"><strong>share_secret</strong> &mdash; hand the agent a plaintext value, get back a link.<br/>
+					<strong>share_file</strong> &mdash; "Encrypt my .env" &rarr; agent reads the path, never the contents.<br/>
+					<strong>retrieve_secret</strong> &mdash; agent fetches + decrypts at runtime. Returns the <code>type</code> so it knows the schema.</p>
 				</div>
 			</div>
 		</div>
