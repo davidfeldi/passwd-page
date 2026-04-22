@@ -86,20 +86,32 @@ changelog:
       - '^test:'
       - '^ci:'
 
-brews:
-  - ids: [passwd-cli, passwd-mcp]
-    repository:
-      owner: davidfeldi
-      name: homebrew-tap
-    homepage: https://passwd.page
-    description: "Zero-knowledge secret sharing for humans and agents"
-    install: |
-      bin.install "passwd-page"
-      bin.install "passwd-mcp"
+# Homebrew tap disabled until davidfeldi/homebrew-tap repo exists.
+# Uncomment and create the tap repo to enable `brew install davidfeldi/tap/passwd-page`.
+# brews:
+#   - ids: [passwd-cli, passwd-mcp]
+#     repository:
+#       owner: davidfeldi
+#       name: homebrew-tap
+#     homepage: https://passwd.page
+#     description: "Zero-knowledge secret sharing for humans and agents"
+#     install: |
+#       bin.install "passwd-page"
+#       bin.install "passwd-mcp"
 
 release:
   github:
     owner: davidfeldi
-    name: passwd.page
+    name: passwd-page
   draft: false
   prerelease: auto
+  header: |
+    ## passwd.page {{ .Tag }}
+
+    Install with one line:
+    ```sh
+    curl -fsSL https://passwd.page/install | sh
+    ```
+  footer: |
+    **Checksums**: see `checksums.txt` in the assets below.
+    **Self-host**: see [SELF_HOSTING.md](https://github.com/davidfeldi/passwd-page/blob/main/SELF_HOSTING.md).

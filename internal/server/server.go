@@ -96,6 +96,11 @@ func NewServer(store storage.Store, opts ...Option) *Server {
 	mux.Handle("GET /health", staticChain(HealthCheck()))
 	mux.Handle("GET /metrics", staticChain(Metrics(store)))
 
+	// Friendly alias: `curl -fsSL https://passwd.page/install | sh` redirects to install.sh.
+	mux.Handle("GET /install", staticChain(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/install.sh", http.StatusFound)
+	})))
+
 	// Static frontend files with SPA fallback (no rate limit).
 	if cfg.frontend != nil {
 		mux.Handle("/", staticChain(spaHandler(cfg.frontend)))

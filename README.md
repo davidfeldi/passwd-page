@@ -104,26 +104,39 @@ Go to [passwd.page](https://passwd.page), paste a secret, get a one-time link.
 
 ### CLI
 
-```bash
-# Install
-go install github.com/davidfeldi/passwd-page/cmd/passwd@latest
+Install with one line — no Go toolchain required:
 
+```bash
+curl -fsSL https://passwd.page/install | sh
+```
+
+This drops `passwd-page` and `passwd-mcp` into `/usr/local/bin` (or `$INSTALL_DIR` if set). Checksums are verified against the GitHub Release.
+
+Alternative (needs Go):
+
+```bash
+go install github.com/davidfeldi/passwd-page/cmd/passwd@latest
+```
+
+Usage:
+
+```bash
 # Share a secret
-passwd create "my-api-key" --ttl 1h
+passwd-page create "my-api-key" --ttl 1h --type api_key
 # https://passwd.page/s/abc123#kG7x...
 
 # Retrieve (decrypts locally, prints to stdout)
-passwd get "https://passwd.page/s/abc123#kG7x..."
+passwd-page get "https://passwd.page/s/abc123#kG7x..."
 # my-api-key
 
 # From a file
-passwd create --file .env --ttl 24h
+passwd-page create --file .env --type env_file --ttl 24h
 
 # From stdin
-echo "secret" | passwd create
+echo "secret" | passwd-page create
 
 # Disable burn-after-read (secret persists until TTL)
-passwd create --no-burn "reusable secret" --ttl 7d
+passwd-page create --no-burn "reusable secret" --ttl 7d
 ```
 
 ### AI Agent (MCP)
