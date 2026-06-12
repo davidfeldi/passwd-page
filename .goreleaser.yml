@@ -55,25 +55,36 @@ builds:
 
 archives:
   - id: cli
-    builds:
+    ids:
       - passwd-cli
     name_template: "passwd-page_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
   - id: mcp
-    builds:
+    ids:
       - passwd-mcp
     name_template: "passwd-mcp_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
   - id: server
-    builds:
+    ids:
       - passwd-server
     name_template: "passwd-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+  # Combined archive (CLI + MCP) for Homebrew. Homebrew needs a single archive
+  # per os/arch, so both binaries are bundled here.
+  - id: brew
+    ids:
+      - passwd-cli
+      - passwd-mcp
+    name_template: "passwd_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
 
 checksum:
   name_template: 'checksums.txt'
@@ -86,18 +97,25 @@ changelog:
       - '^test:'
       - '^ci:'
 
-# Homebrew tap disabled until davidfeldi/homebrew-tap repo exists.
-# Uncomment and create the tap repo to enable `brew install davidfeldi/tap/passwd-page`.
-# brews:
-#   - ids: [passwd-cli, passwd-mcp]
-#     repository:
-#       owner: davidfeldi
-#       name: homebrew-tap
-#     homepage: https://passwd.page
-#     description: "Zero-knowledge secret sharing for humans and agents"
-#     install: |
-#       bin.install "passwd-page"
-#       bin.install "passwd-mcp"
+# Homebrew tap. Requires:
+#   1. A public repo davidfeldi/homebrew-tap to exist.
+#   2. A repo secret TAP_GITHUB_TOKEN (PAT with contents:write on the tap repo),
+#      wired into .github/workflows/release.yml.
+# Then: brew install davidfeldi/tap/passwd-page  (installs passwd-page + passwd-mcp)
+brews:
+  - ids: [brew]
+    repository:
+      owner: davidfeldi
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    homepage: https://passwd.page
+    description: "Zero-knowledge secret sharing for humans and agents"
+    license: "MIT"
+    install: |
+      bin.install "passwd-page"
+      bin.install "passwd-mcp"
+    test: |
+      system "#{bin}/passwd-page", "version"
 
 release:
   github:

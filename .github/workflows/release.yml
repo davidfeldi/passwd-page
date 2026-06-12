@@ -34,3 +34,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT with contents:write on davidfeldi/homebrew-tap (for the brew formula).
+          # Falls back to GITHUB_TOKEN if unset, which only works if the tap lives
+          # in this same repo/owner with the right permissions.
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
