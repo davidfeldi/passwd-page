@@ -33,7 +33,7 @@ builds:
       - goos: windows
         goarch: arm64
     ldflags:
-      - -s -w
+      - -s -w -X main.version={{ .Version }}
 
   - id: passwd-mcp
     main: ./cmd/passwd-mcp
@@ -51,7 +51,7 @@ builds:
       - goos: windows
         goarch: arm64
     ldflags:
-      - -s -w
+      - -s -w -X main.version={{ .Version }}
 
 archives:
   - id: cli
