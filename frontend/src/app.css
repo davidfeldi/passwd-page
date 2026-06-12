@@ -1,40 +1,54 @@
-/* ============================================
-   passwd.page — Global Dark Terminal Theme
-   ============================================ */
+/* ============================================================
+   passwd.page — "Obsidian Vault" glass theme
+   Deep green-black atmosphere, frosted glass panels,
+   one luminous mint accent. Display: Bricolage Grotesque.
+   Body: Instrument Sans. Mono: Geist Mono.
+   ============================================================ */
 
-/* --- Font faces --- */
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: local('JetBrains Mono'), local('JetBrainsMono-Regular'),
-       url('/fonts/JetBrainsMono-Regular.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: local('JetBrains Mono Bold'), local('JetBrainsMono-Bold'),
-       url('/fonts/JetBrainsMono-Bold.woff2') format('woff2');
-}
-
-/* --- CSS Custom Properties --- */
+/* --- Design tokens --- */
 :root {
-  --bg: #0a0a0a;
-  --surface: #111111;
-  --border: #222222;
-  --text: #e0e0e0;
-  --muted: #666666;
-  --accent: #00ff88;
-  --error: #ff4444;
-  --warning: #ffaa00;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
+  /* depth */
+  --bg-0: #050807;
+  --bg-1: #090e0c;
+  --bg-2: #0d1411;
+
+  /* ink */
+  --ink: #ecf5f0;
+  --ink-dim: #9aaba3;
+  --ink-faint: #5e6e66;
+
+  /* accent system */
+  --mint: #3cf2b0;
+  --mint-deep: #18e299;
+  --mint-dark: #0fa76e;
+  --mint-glow: rgba(60, 242, 176, 0.35);
+  --cyan: #7be0ff;
+
+  /* states */
+  --danger: #ff7373;
+  --warning: #ffc56b;
+
+  /* glass recipe */
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --glass-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  --glass-bg-strong: linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  --glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 24px 48px -24px rgba(0, 0, 0, 0.65);
+
+  /* type */
+  --font-display: 'Bricolage Grotesque', 'Avenir Next', sans-serif;
+  --font-body: 'Instrument Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* radii */
+  --r-card: 20px;
+  --r-pill: 9999px;
+  --r-field: 12px;
 }
 
-/* --- Reset and base --- */
+/* --- Reset --- */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -42,52 +56,147 @@
 }
 
 html {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 14px;
+  background: var(--bg-0);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
   line-height: 1.6;
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: relative;
 }
 
-/* --- Focus visible for accessibility --- */
+/* --- Atmosphere: fixed gradient mesh --- */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 50% 38% at 18% -6%, rgba(60, 242, 176, 0.10), transparent 70%),
+    radial-gradient(ellipse 42% 32% at 88% 12%, rgba(123, 224, 255, 0.055), transparent 70%),
+    radial-gradient(ellipse 60% 44% at 50% 112%, rgba(24, 226, 153, 0.07), transparent 70%),
+    linear-gradient(180deg, var(--bg-1), var(--bg-0) 42%);
+  pointer-events: none;
+}
+
+/* --- Atmosphere: grain --- */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* --- Accessibility --- */
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid var(--mint);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
-/* --- Selection --- */
 ::selection {
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--mint);
+  color: var(--bg-0);
 }
 
-/* --- Scrollbar (webkit) --- */
-::-webkit-scrollbar {
-  width: 6px;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
 }
 
-::-webkit-scrollbar-track {
-  background: var(--bg);
-}
-
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-0); }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
 }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 
 /* --- Links --- */
 a {
-  color: var(--accent);
+  color: var(--mint);
   text-decoration: none;
-  transition: opacity 0.2s;
+  transition: color 0.2s, opacity 0.2s;
 }
 
-a:hover {
-  opacity: 0.8;
+a:hover { color: var(--mint-deep); }
+
+/* --- Scroll choreography (landing) ---
+   Runtime-toggled classes; must live here (not in component CSS) or
+   Svelte's unused-CSS elimination prunes them. The hidden state only
+   arms once JS adds .js, so no-JS users/crawlers see everything. */
+.landing.js .sr {
+  opacity: 0;
+  transform: translateY(26px);
+  filter: blur(5px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    filter 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.landing.js .sr.sr-in {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+.landing.js .grid-2 .sr:nth-child(2),
+.landing.js .grid-3 .sr:nth-child(2) { transition-delay: 90ms; }
+.landing.js .grid-2 .sr:nth-child(3),
+.landing.js .grid-3 .sr:nth-child(3) { transition-delay: 180ms; }
+.landing.js .grid-2 .sr:nth-child(4) { transition-delay: 270ms; }
+.landing.js .grid-2 .sr:nth-child(5) { transition-delay: 360ms; }
+.landing.js .grid-2 .sr:nth-child(6) { transition-delay: 450ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .landing.js .sr { opacity: 1; transform: none; filter: none; }
+}
+
+/* --- Shared glass primitives (used across pages) --- */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.brand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.brand-pill svg { color: var(--mint); }
+
+.brand-name {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
 }
