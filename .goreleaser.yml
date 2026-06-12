@@ -104,6 +104,9 @@ changelog:
 # Then: brew install davidfeldi/tap/passwd-page  (installs passwd-page + passwd-mcp)
 brews:
   - ids: [brew]
+    # Homebrew only loads formulae from Formula/ (root-level .rb is ignored by
+    # modern brew), so write the formula there.
+    directory: Formula
     repository:
       owner: davidfeldi
       name: homebrew-tap
