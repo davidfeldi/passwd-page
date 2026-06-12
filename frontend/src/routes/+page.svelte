@@ -1,9 +1,62 @@
 <svelte:head>
 	<title>passwd.page — Secure secret sharing for humans and agents</title>
-	<meta name="description" content="Zero-knowledge secret sharing. End-to-end encrypted, self-destructing, open source. CLI, API, and MCP tool server for AI agents." />
+	<meta name="description" content="Zero-knowledge secret sharing. Send a password, API key, .env file, or any secret as an encrypted, self-destructing one-time link. End-to-end encrypted, no signup, open source. CLI, API, and MCP tool server for AI agents." />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet" />
+	{@html `<script type="application/ld+json">${JSON.stringify({
+		'@context': 'https://schema.org',
+		'@graph': [
+			{
+				'@type': 'SoftwareApplication',
+				name: 'passwd.page',
+				description:
+					'Zero-knowledge secret sharing. Send a password, API key, .env file, or any secret as an encrypted, self-destructing one-time link. End-to-end encrypted, open source, with CLI, REST API, and MCP tool server for AI agents.',
+				url: 'https://passwd.page/',
+				applicationCategory: 'SecurityApplication',
+				operatingSystem: 'Web, Linux, macOS, Windows',
+				offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+				license: 'https://opensource.org/licenses/MIT'
+			},
+			{
+				'@type': 'FAQPage',
+				mainEntity: [
+					{
+						'@type': 'Question',
+						name: 'How do I share a password securely?',
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: 'passwd.page encrypts your secret in your browser with AES-256-GCM and gives you a one-time link. The decryption key lives only in the URL fragment, which is never sent to the server. The recipient opens the link once and the secret is destroyed.'
+						}
+					},
+					{
+						'@type': 'Question',
+						name: 'What is a one-time secret link?',
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: 'A one-time secret link is a URL that reveals a shared secret a single time and then self-destructs (burn after reading), so the credential cannot be read again or recovered from chat history.'
+						}
+					},
+					{
+						'@type': 'Question',
+						name: 'Is passwd.page really zero-knowledge?',
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: 'Yes. Encryption happens on your device and the decryption key never reaches the server — it stays in the URL fragment after the # per the HTTP spec. The server only ever stores opaque ciphertext, so it is mathematically unable to read your secrets. The code is open source so you can verify it.'
+						}
+					},
+					{
+						'@type': 'Question',
+						name: 'Can AI agents share secrets with passwd.page?',
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: 'Yes. passwd.page ships an MCP tool server (share_secret, share_file, retrieve_secret) plus a CLI and REST API, so agents can hand off short-lived credentials without ever pasting them into a prompt.'
+						}
+					}
+				]
+			}
+		]
+	})}</script>`}
 </svelte:head>
 
 <div class="landing">
@@ -175,16 +228,19 @@
 				<div class="card gs-card">
 					<h3>CLI</h3>
 					<p class="gs-desc">For your terminal and scripts.</p>
-					<pre class="code-block"><span class="c-dim"># Share a typed secret, 5 min TTL</span>
-passwd create "sk_live_..." --type api_key --ttl 5m
+					<pre class="code-block"><span class="c-dim"># Install (verifies checksums)</span>
+curl -fsSL https://passwd.page/install | sh
+
+<span class="c-dim"># Share a typed secret, 5 min TTL</span>
+passwd-page create "sk_live_..." --type api_key --ttl 5m
 <span class="c-green"># https://passwd.page/s/a3f8#kG7...</span>
 
 <span class="c-dim"># Retrieve it</span>
-passwd get "https://passwd.page/s/a3f8#kG7..."
+passwd-page get "https://passwd.page/s/a3f8#kG7..."
 <span class="c-green"># sk_live_...</span>
 
 <span class="c-dim"># From a file (1 MB max)</span>
-passwd create --file .env --type env_file</pre>
+passwd-page create --file .env --type env_file</pre>
 				</div>
 				<div class="card gs-card">
 					<h3>AI Agent</h3>
@@ -226,6 +282,36 @@ passwd create --file .env --type env_file</pre>
 				<div class="card">
 					<h3>Nothing to remember</h3>
 					<p class="card-body">No accounts. No master passwords. No subscription. Share a secret, get a link, done. The way it should be.</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- FAQ -->
+	<section class="section" id="faq">
+		<div class="contain">
+			<p class="section-label">FAQ</p>
+			<h2>One-time secret links, explained.</h2>
+			<div class="faq-list">
+				<div class="faq-item">
+					<h3>How do I share a password securely?</h3>
+					<p>Paste it, get a link, send the link. passwd.page encrypts the password in your browser with AES-256-GCM and hands you a <strong>one-time secret link</strong>. The decryption key lives only in the URL fragment and is never sent to the server. The recipient opens it once and the secret self-destructs.</p>
+				</div>
+				<div class="faq-item">
+					<h3>What is a one-time secret link?</h3>
+					<p>A URL that reveals a shared secret a single time, then burns after reading. No copies in Slack, no plaintext in email, nothing left to leak from chat history. Perfect for ephemeral secret sharing — temporary passwords, API keys, database URLs.</p>
+				</div>
+				<div class="faq-item">
+					<h3>Is it really zero-knowledge?</h3>
+					<p>Yes. Encryption runs on your device and the key never reaches our servers. We only store opaque ciphertext, so we are mathematically unable to read your secrets — even under subpoena or breach. It's open source, so you can verify it yourself.</p>
+				</div>
+				<div class="faq-item">
+					<h3>Can AI agents share secrets with it?</h3>
+					<p>Yes. An MCP tool server (<code>share_secret</code>, <code>share_file</code>, <code>retrieve_secret</code>), a CLI, and a REST API let agents hand off short-lived credentials without ever pasting them into a prompt.</p>
+				</div>
+				<div class="faq-item">
+					<h3>How is this different from emailing a password?</h3>
+					<p>Email and chat keep secrets in plaintext forever, searchable and accessible to admins and compliance tools. passwd.page secrets are end-to-end encrypted, expire on a timer (5 minutes to 30 days), and can self-destruct on first read.</p>
 				</div>
 			</div>
 		</div>
@@ -618,6 +704,37 @@ passwd create --file .env --type env_file</pre>
 
 	.c-dim { color: #888888; }
 	.c-green { color: #0fa76e; }
+
+	/* ── FAQ ── */
+	.faq-list {
+		display: flex;
+		flex-direction: column;
+		gap: 24px;
+	}
+
+	.faq-item h3 {
+		font-size: 18px;
+		font-weight: 600;
+		color: #0d0d0d;
+		letter-spacing: -0.2px;
+		margin: 0 0 6px 0;
+	}
+
+	.faq-item p {
+		font-size: 15px;
+		color: #555555;
+		line-height: 1.6;
+		margin: 0;
+	}
+
+	.faq-item code {
+		font-family: 'Geist Mono', ui-monospace, monospace;
+		font-size: 13px;
+		background: #f5f5f5;
+		padding: 2px 6px;
+		border-radius: 4px;
+		color: #0d0d0d;
+	}
 
 	/* ── CTA ── */
 	.section-cta {

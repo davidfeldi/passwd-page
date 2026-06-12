@@ -1,0 +1,55 @@
+name: Bug report
+description: Something isn't working as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug! Please don't include real secrets or live links.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+      placeholder: When I run `passwd-page create ...`, I expected X but got Y.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `...`
+        2. Open `...`
+        3. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which interface?
+      options:
+        - Web (passwd.page)
+        - CLI (passwd-page)
+        - MCP server (passwd-mcp)
+        - Self-hosted server (passwd-server)
+        - Other / not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `passwd-page version` (or the git commit / Docker tag).
+      placeholder: v3.0.0
+  - type: input
+    id: os
+    attributes:
+      label: OS / browser
+      placeholder: macOS 14 (arm64) / Firefox 126
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste any relevant output. Redact secrets.
+      render: shell

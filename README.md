@@ -51,6 +51,20 @@ Your agents need secrets. Pasting them into prompts gets them logged, leaked, an
 - **No accounts, no cookies, no tracking** -- stateless by design
 - **Open source** -- MIT licensed
 
+## How it compares
+
+A one-time secret link / ephemeral password sharing tool, like PrivateBin or One-Time Secret -- but built for the agent era.
+
+| | passwd.page | One-Time Secret | PrivateBin |
+|---|:---:|:---:|:---:|
+| Zero-knowledge (key never hits server) | ✅ | ⚠️ optional | ✅ |
+| Burn-after-read | ✅ | ✅ | ✅ |
+| File sharing | ✅ | ⚠️ paid | ✅ |
+| CLI tool | ✅ | ⚠️ 3rd-party | ❌ |
+| MCP server for AI agents | ✅ | ❌ | ❌ |
+| Single self-hostable binary | ✅ | ❌ (Ruby/Redis) | ⚠️ (PHP) |
+| No signup | ✅ | ✅ | ✅ |
+
 ## How It Works
 
 1. **Encrypt** -- your device generates a random AES-256-GCM key and encrypts the secret.
@@ -112,13 +126,15 @@ curl -fsSL https://passwd.page/install | sh
 
 This drops `passwd-page` and `passwd-mcp` into `/usr/local/bin` (or `$INSTALL_DIR` if set). Checksums are verified against the GitHub Release.
 
-Alternative (needs Go):
+Alternative (needs Go) -- note this installs a binary named `passwd`, which
+shadows the system `passwd` command; the curl installer above uses the safer
+`passwd-page` name:
 
 ```bash
 go install github.com/davidfeldi/passwd-page/cmd/passwd@latest
 ```
 
-Usage:
+Usage (`passwd-page` is the name installed by the curl script; use `passwd` if you built via `go install`):
 
 ```bash
 # Share a secret
@@ -161,6 +177,10 @@ Add to your Claude Code config (`settings.json` or `claude_desktop_config.json`)
   }
 }
 ```
+
+Not sure what to paste? Run `passwd-mcp --show-config` to print a ready-to-paste
+config block (with the absolute binary path filled in). `passwd-mcp --list-tools`
+lists the exposed tools.
 
 Then ask your agent: *"Share this API key securely"* or *"Retrieve the secret at this URL."*
 
@@ -331,26 +351,12 @@ These are inherent to any browser-based secret sharing and are not unique to pas
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run the tests:
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for local setup, the test commands, and
+the PR workflow. In short: fork, branch, make sure `go test ./...` and
+`npx vitest run` pass, then open a focused pull request.
 
-```bash
-# Go unit tests
-go test ./...
-
-# Frontend crypto tests
-cd frontend && npx vitest run
-
-# E2E tests (requires a running server)
-go run ./cmd/passwd-server -port 9876 -db /tmp/test.db &
-cd e2e && npx playwright test
-```
-
-1. Submit a pull request
-
-Code style: `gofmt` for Go, standard Prettier for TypeScript/Svelte. Keep external dependencies to a minimum.
+Code style: `gofmt` for Go, standard Prettier for TypeScript/Svelte. Keep
+external dependencies to a minimum, and never weaken the zero-knowledge model.
 
 ## Tech Stack
 

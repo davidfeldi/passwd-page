@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /$
+Allow: /share
+Disallow: /s/
+Disallow: /api/
+
+Sitemap: https://passwd.page/sitemap.xml

@@ -4,12 +4,30 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="theme-color" content="#0a0a0a" />
-		<meta name="description" content="Share secrets securely. Zero knowledge. Auto-expires." />
+		<meta name="description" content="Zero-knowledge secret sharing. Send a password, API key, .env file, or any secret as an encrypted, self-destructing one-time link. End-to-end encrypted, no signup, open source." />
+		<link rel="canonical" href="https://passwd.page/" />
 		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300ff88' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='11' width='18' height='11' rx='2' ry='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/></svg>" />
+
+		<!-- Open Graph -->
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="passwd.page" />
+		<meta property="og:title" content="passwd.page — secure secret sharing for humans and agents" />
+		<meta property="og:description" content="Zero-knowledge, self-destructing one-time links for passwords, API keys, and files. End-to-end encrypted, no signup, open source." />
+		<meta property="og:url" content="https://passwd.page/" />
+		<meta property="og:image" content="https://passwd.page/og.png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+
+		<!-- Twitter -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="passwd.page — secure secret sharing for humans and agents" />
+		<meta name="twitter:description" content="Zero-knowledge, self-destructing one-time links for passwords, API keys, and files. End-to-end encrypted, no signup, open source." />
+		<meta name="twitter:image" content="https://passwd.page/og.png" />
+
 		<title>passwd.page</title>
 		%sveltekit.head%
 	</head>
-	<body data-sveltekit-prerender="false">
+	<body>
 		<div style="display: contents">%sveltekit.body%</div>
 		<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "5b5a2b1ed80d46388f1b5f45e5b67cdc"}'></script><!-- End Cloudflare Web Analytics -->
 	</body>

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/davidfeldi/passwd-page/blob/main/CONTRIBUTING.md#reporting-security-issues
+    about: Please report secret-exposing vulnerabilities privately, not as a public issue.
