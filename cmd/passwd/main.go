@@ -14,6 +14,76 @@ import (
 
 var version = "dev"
 
+const usageText = `passwd — zero-knowledge ephemeral secret sharing
+
+Usage:
+  passwd <command> [options]
+
+Commands:
+  create    Encrypt a secret and upload it, printing a one-time link
+  get       Fetch and decrypt a secret from a passwd.page link
+  version   Print the client version
+  help      Show this help (also: -h, --help)
+
+Run "passwd <command> --help" for command-specific options.
+
+Environment:
+  PASSWD_SERVER   Server URL (default: https://passwd.page)
+
+Examples:
+  passwd create "my secret"
+  echo "$API_KEY" | passwd create --type api_key --ttl 5m
+  passwd create --file .env --type env_file
+  passwd get "https://passwd.page/s/abc123#key"
+`
+
+const createUsageText = `passwd create — encrypt a secret and upload it, printing a one-time link
+
+Usage:
+  passwd create [secret] [options]
+  echo "secret" | passwd create [options]
+
+The secret is read from (in order): a positional argument, --file, or stdin.
+Encryption happens locally; the server never sees the key or plaintext.
+
+Options:
+  -t, --ttl <dur>     Time to live: 5m, 15m, 1h, 24h, 7d, 30d (default: 24h)
+      --type <type>   Secret type: text, file, postgres_url, api_key, ssh_key,
+                      env_file, jwt, oauth_token (default: text)
+  -f, --file <path>   Read the secret from a file (max 1 MiB)
+  -b, --burn          Burn after reading — destroy on first view (default: on)
+      --no-burn       Keep readable until it expires
+  -s, --server <url>  Override the server URL (default: $PASSWD_SERVER)
+  -h, --help          Show this help
+
+Examples:
+  passwd create "sk_live_..." --type api_key --ttl 5m
+  passwd create --file ./creds.txt
+  echo "$DATABASE_URL" | passwd create --type postgres_url --no-burn
+`
+
+const getUsageText = `passwd get — fetch and decrypt a secret from a passwd.page link
+
+Usage:
+  passwd get <url> [options]
+
+The decryption key is read from the URL fragment (after #) and never sent to
+the server. For non-text secrets a "# type: <type>" hint is printed to stderr,
+so plain redirection (passwd get ... > file) stays clean.
+
+Options:
+  -s, --server <url>  Override the server URL (default: derived from the link)
+  -h, --help          Show this help
+
+Examples:
+  passwd get "https://passwd.page/s/abc123#kG7..."
+  passwd get "https://passwd.page/s/abc123#kG7..." > secret.txt
+`
+
+func isHelpFlag(s string) bool {
+	return s == "-h" || s == "--help" || s == "help"
+}
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -23,11 +93,15 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: passwd <create|get|version> [options]")
+		fmt.Print(usageText)
+		return nil
 	}
 
 	switch args[0] {
-	case "version":
+	case "help", "-h", "--help":
+		fmt.Print(usageText)
+		return nil
+	case "version", "-v", "--version":
 		fmt.Println(version)
 		return nil
 	case "create":
@@ -35,7 +109,7 @@ func run(args []string) error {
 	case "get":
 		return runGet(args[1:])
 	default:
-		return fmt.Errorf("unknown command: %s\nusage: passwd <create|get|version> [options]", args[0])
+		return fmt.Errorf("unknown command: %s\nrun \"passwd help\" for usage", args[0])
 	}
 }
 
@@ -66,6 +140,9 @@ func runCreate(args []string) error {
 	positional := []string{}
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "-h", "--help":
+			fmt.Print(createUsageText)
+			return nil
 		case "--ttl", "-t":
 			i++
 			if i >= len(args) {
@@ -96,7 +173,7 @@ func runCreate(args []string) error {
 			secretType = args[i]
 		default:
 			if strings.HasPrefix(args[i], "-") {
-				return fmt.Errorf("unknown flag: %s", args[i])
+				return fmt.Errorf("unknown flag: %s (run \"passwd create --help\")", args[i])
 			}
 			positional = append(positional, args[i])
 		}
@@ -138,7 +215,7 @@ func runCreate(args []string) error {
 			}
 			secret = string(data)
 		} else {
-			return fmt.Errorf("no secret provided (pass as argument, --file, or pipe to stdin)")
+			return fmt.Errorf("no secret provided — pass it as an argument, use --file <path>, or pipe to stdin (run \"passwd create --help\")")
 		}
 	}
 
@@ -184,6 +261,9 @@ func runGet(args []string) error {
 	positional := []string{}
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "-h", "--help":
+			fmt.Print(getUsageText)
+			return nil
 		case "--server", "-s":
 			i++
 			if i >= len(args) {
@@ -192,14 +272,14 @@ func runGet(args []string) error {
 			serverOverride = args[i]
 		default:
 			if strings.HasPrefix(args[i], "-") {
-				return fmt.Errorf("unknown flag: %s", args[i])
+				return fmt.Errorf("unknown flag: %s (run \"passwd get --help\")", args[i])
 			}
 			positional = append(positional, args[i])
 		}
 	}
 
 	if len(positional) != 1 {
-		return fmt.Errorf("usage: passwd get <url>")
+		return fmt.Errorf("usage: passwd get <url>  (run \"passwd get --help\")")
 	}
 
 	rawURL := positional[0]

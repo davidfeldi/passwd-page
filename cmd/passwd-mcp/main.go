@@ -162,7 +162,74 @@ var tools = []tool{
 	},
 }
 
+var version = "dev"
+
+const mcpUsageText = `passwd-mcp — MCP tool server for passwd.page (JSON-RPC over stdio)
+
+It is normally launched by an MCP client (Claude Code, Claude Desktop), not
+run by hand. With no arguments it speaks MCP on stdin/stdout.
+
+Tools: share_secret, share_file, retrieve_secret
+
+Usage:
+  passwd-mcp [flags]
+
+Flags:
+  --show-config   Print a ready-to-paste mcpServers config block
+  --list-tools    Print the tool names this server exposes
+  --version       Print the version
+  -h, --help      Show this help
+
+Environment:
+  PASSWD_SERVER   Server URL (default: https://passwd.page)
+`
+
+func showConfig() {
+	server := os.Getenv("PASSWD_SERVER")
+	if server == "" {
+		server = "https://passwd.page"
+	}
+	bin, err := os.Executable()
+	if err != nil || bin == "" {
+		bin = "passwd-mcp"
+	}
+	cfg := map[string]any{
+		"mcpServers": map[string]any{
+			"passwd": map[string]any{
+				"command": bin,
+				"env":     map[string]string{"PASSWD_SERVER": server},
+			},
+		},
+	}
+	out, _ := json.MarshalIndent(cfg, "", "  ")
+	fmt.Println("# Add this to your MCP client config (e.g. Claude Code settings.json")
+	fmt.Println("# or Claude Desktop claude_desktop_config.json):")
+	fmt.Println(string(out))
+}
+
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "-h", "--help", "help":
+			fmt.Print(mcpUsageText)
+			return
+		case "--version", "-v", "version":
+			fmt.Println(version)
+			return
+		case "--show-config":
+			showConfig()
+			return
+		case "--list-tools":
+			for _, t := range tools {
+				fmt.Println(t.Name)
+			}
+			return
+		default:
+			fmt.Fprintf(os.Stderr, "unknown flag: %s\nrun \"passwd-mcp --help\" for usage\n", os.Args[1])
+			os.Exit(1)
+		}
+	}
+
 	log := func(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, format+"\n", args...)
 	}

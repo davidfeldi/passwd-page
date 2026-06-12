@@ -133,8 +133,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
-// spaHandler serves static files from the embedded FS, falling back to
-// index.html for paths that don't match a real file (SPA client-side routing).
+// spaHandler serves static files from the embedded FS. Prerendered routes are
+// served as real HTML (so crawlers see content): "/" -> index.html and
+// "/share" -> share.html. The dynamic /s/[id] route has no prerendered file, so
+// it falls back to 200.html — the SvelteKit SPA shell that boots client-side.
 func spaHandler(frontend fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Clean the path; strip leading slash for fs.Open.
@@ -148,8 +150,20 @@ func spaHandler(frontend fs.FS) http.Handler {
 		// Try to open the requested file.
 		f, err := frontend.Open(p)
 		if err != nil {
-			// File not found — serve index.html for SPA routing.
-			serveIndexHTML(w, r, frontend)
+			// No exact match. For extension-less paths, try the prerendered
+			// "<path>.html" (e.g. /share -> share.html) before giving up to the
+			// SPA fallback.
+			if path.Ext(p) == "" {
+				if hf, herr := frontend.Open(p + ".html"); herr == nil {
+					defer hf.Close()
+					if hstat, serr := hf.Stat(); serr == nil && !hstat.IsDir() {
+						http.ServeContent(w, r, hstat.Name(), hstat.ModTime(), hf.(io.ReadSeeker))
+						return
+					}
+				}
+			}
+			// Unmatched — serve the SPA fallback for client-side routing.
+			serveFallback(w, r, frontend)
 			return
 		}
 		defer f.Close()
@@ -157,7 +171,7 @@ func spaHandler(frontend fs.FS) http.Handler {
 		// If it's a directory, try <dir>/index.html, else SPA fallback.
 		stat, err := f.Stat()
 		if err != nil {
-			serveIndexHTML(w, r, frontend)
+			serveFallback(w, r, frontend)
 			return
 		}
 		if stat.IsDir() {
@@ -165,7 +179,7 @@ func spaHandler(frontend fs.FS) http.Handler {
 			indexPath := path.Join(p, "index.html")
 			f2, err := frontend.Open(indexPath)
 			if err != nil {
-				serveIndexHTML(w, r, frontend)
+				serveFallback(w, r, frontend)
 				return
 			}
 			defer f2.Close()
@@ -177,20 +191,27 @@ func spaHandler(frontend fs.FS) http.Handler {
 	})
 }
 
-// serveIndexHTML serves the root index.html as the SPA fallback.
-func serveIndexHTML(w http.ResponseWriter, r *http.Request, frontend fs.FS) {
-	f, err := frontend.Open("index.html")
+// serveFallback serves the SPA shell (200.html) for routes with no prerendered
+// file, such as /s/[id]. Falls back to index.html if 200.html is absent (e.g.
+// an older frontend build).
+func serveFallback(w http.ResponseWriter, r *http.Request, frontend fs.FS) {
+	name := "200.html"
+	f, err := frontend.Open(name)
 	if err != nil {
-		http.Error(w, "index.html not found", http.StatusInternalServerError)
-		return
+		name = "index.html"
+		f, err = frontend.Open(name)
+		if err != nil {
+			http.Error(w, "SPA fallback not found", http.StatusInternalServerError)
+			return
+		}
 	}
 	defer f.Close()
 
 	stat, err := f.Stat()
 	if err != nil {
-		http.Error(w, "failed to stat index.html", http.StatusInternalServerError)
+		http.Error(w, "failed to stat fallback", http.StatusInternalServerError)
 		return
 	}
 
-	http.ServeContent(w, r, "index.html", stat.ModTime(), f.(io.ReadSeeker))
+	http.ServeContent(w, r, name, stat.ModTime(), f.(io.ReadSeeker))
 }

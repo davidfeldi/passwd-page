@@ -442,8 +442,13 @@
 						class="result-url"
 						onclick={(e) => (e.currentTarget as HTMLInputElement).select()}
 					/>
-					<button type="button" class="btn-copy" onclick={copyUrl}>
-						{copied ? 'Copied!' : 'Copy'}
+					<button type="button" class="btn-copy" class:copied onclick={copyUrl}>
+						{#if copied}
+							<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+							Copied!
+						{:else}
+							Copy
+						{/if}
 					</button>
 				</div>
 
@@ -964,6 +969,9 @@
 
 	.btn-copy {
 		align-self: flex-end;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
 		background: #0d0d0d;
 		border: none;
 		color: #ffffff;
@@ -974,11 +982,17 @@
 		border-radius: 9999px;
 		cursor: pointer;
 		white-space: nowrap;
-		transition: opacity 0.15s;
+		transition: opacity 0.15s, background 0.15s, color 0.15s;
 	}
 
 	.btn-copy:hover {
 		opacity: 0.85;
+	}
+
+	.btn-copy.copied {
+		background: #d4fae8;
+		color: #0fa76e;
+		opacity: 1;
 	}
 
 	.btn-copy:focus-visible {
